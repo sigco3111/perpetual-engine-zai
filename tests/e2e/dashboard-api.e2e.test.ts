@@ -55,13 +55,15 @@ describe('E2E — Dashboard API', () => {
     expect(body.active_agents).toBe(0);
   });
 
-  it('/api/kanban 는 빈 보드로 시작한다', async () => {
+  it('/api/kanban 는 status별 그룹핑된 빈 보드로 시작한다', async () => {
     const res = await fetch(`${baseUrl}/api/kanban`);
     expect(res.status).toBe(200);
 
-    const board = await res.json() as { tasks: unknown[]; next_id: number };
-    expect(board.tasks).toEqual([]);
-    expect(board.next_id).toBe(1);
+    const board = await res.json() as Record<string, unknown[]>;
+    expect(board.backlog).toEqual([]);
+    expect(board.todo).toEqual([]);
+    expect(board.in_progress).toEqual([]);
+    expect(board.done).toEqual([]);
   });
 
   it('태스크를 직접 추가하면 /api/tasks 에서 조회 가능하다', async () => {
