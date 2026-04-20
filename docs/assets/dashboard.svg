@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E1D1B"/>
+      <stop offset="100%" stop-color="#141311"/>
+    </linearGradient>
+    <filter id="winShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="16"/>
+      <feOffset dx="0" dy="18" result="off"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.45"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+
+  <!-- Browser window frame -->
+  <g filter="url(#winShadow)">
+    <rect x="40" y="40" width="1520" height="920" rx="14" fill="#262624" stroke="#3D3B36"/>
+
+    <!-- Window chrome -->
+    <rect x="40" y="40" width="1520" height="46" rx="14" fill="#2F2E2C"/>
+    <path d="M 40 86 L 1560 86" stroke="#3D3B36"/>
+    <g transform="translate(66, 63)">
+      <circle cx="0" cy="0" r="6.5" fill="#C4644E"/>
+      <circle cx="20" cy="0" r="6.5" fill="#D4A24A"/>
+      <circle cx="40" cy="0" r="6.5" fill="#8FA96B"/>
+    </g>
+    <g transform="translate(660, 55)">
+      <rect width="280" height="26" rx="13" fill="#1F1E1C" stroke="#3D3B36"/>
+      <text x="140" y="18" font-family="ui-monospace, Menlo, monospace" font-size="12" fill="#8A8780" text-anchor="middle">localhost:3000</text>
+    </g>
+
+    <!-- Top nav bar -->
+    <g transform="translate(40, 86)">
+      <rect width="1520" height="58" fill="#262624"/>
+      <path d="M 0 58 L 1520 58" stroke="#3D3B36"/>
+
+      <!-- Brand block -->
+      <g transform="translate(28, 16)">
+        <rect width="30" height="30" rx="8" fill="#D97757"/>
+        <text x="15" y="22" font-family="ui-serif, Georgia, serif" font-size="18" font-weight="600" fill="#FFFFFF" text-anchor="middle">∞</text>
+        <text x="44" y="15" font-family="ui-serif, Georgia, serif" font-size="15" font-weight="600" fill="#E8E6E3">Perpetual Engine</text>
+        <text x="44" y="28" font-family="ui-sans-serif, -apple-system, sans-serif" font-size="11" fill="#B4B1AB">Acme AI</text>
+      </g>
+
+      <!-- Tabs -->
+      <g transform="translate(620, 22)" font-family="ui-sans-serif, -apple-system, sans-serif" font-size="13" font-weight="500">
+        <g>
+          <rect x="-10" y="-4" width="72" height="26" rx="7" fill="#36352F"/>
+          <text fill="#E8E6E3" y="14">Overview</text>
+        </g>
+        <text x="80" y="14" fill="#B4B1AB">Kanban</text>
+        <text x="148" y="14" fill="#B4B1AB">Organization</text>
+        <text x="246" y="14" fill="#B4B1AB">Documents</text>
+        <text x="330" y="14" fill="#B4B1AB">Messages</text>
+        <text x="408" y="14" fill="#B4B1AB">Settings</text>
+      </g>
+
+      <!-- Message CTA -->
+      <g transform="translate(1384, 15)">
+        <rect width="112" height="30" rx="8" fill="#D97757"/>
+        <g transform="translate(12, 8)" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M0 7l14-7-5 16-3-7-6-2z"/>
+        </g>
+        <text x="36" y="19" font-family="ui-sans-serif, sans-serif" font-size="13" font-weight="500" fill="#FFFFFF">Message</text>
+      </g>
+    </g>
+
+    <!-- Main content -->
+    <g transform="translate(40, 144)">
+      <!-- Hero header -->
+      <g transform="translate(40, 32)">
+        <text font-family="ui-serif, Georgia, serif" font-size="34" font-weight="600" fill="#E8E6E3" letter-spacing="-0.5">Acme AI</text>
+        <text y="30" font-family="ui-sans-serif, -apple-system, sans-serif" font-size="14" fill="#B4B1AB">Build the fastest path to $1M ARR with autonomous agents.</text>
+      </g>
+
+      <!-- KPI grid -->
+      <g transform="translate(40, 108)" font-family="ui-sans-serif, -apple-system, sans-serif">
+        <!-- Card 1 -->
+        <g>
+          <rect width="340" height="116" rx="10" fill="#2F2E2C" stroke="#3D3B36"/>
+          <text x="20" y="30" font-size="11" fill="#8A8780" letter-spacing="1.5" font-weight="500">TOTAL TASKS</text>
+          <text x="20" y="76" font-family="ui-serif, Georgia, serif" font-size="34" font-weight="600" fill="#E8E6E3">34</text>
+          <text x="20" y="100" font-size="12" fill="#8A8780">All tickets</text>
+        </g>
+        <!-- Card 2 -->
+        <g transform="translate(360, 0)">
+          <rect width="340" height="116" rx="10" fill="#2F2E2C" stroke="#3D3B36"/>
+          <text x="20" y="30" font-size="11" fill="#8A8780" letter-spacing="1.5" font-weight="500">COMPLETED</text>
+          <text x="20" y="76" font-family="ui-serif, Georgia, serif" font-size="34" font-weight="600" fill="#8FA96B">21</text>
+          <text x="20" y="100" font-size="12" fill="#8A8780">62% of total</text>
+        </g>
+        <!-- Card 3 -->
+        <g transform="translate(720, 0)">
+          <rect width="340" height="116" rx="10" fill="#2F2E2C" stroke="#3D3B36"/>
+          <text x="20" y="30" font-size="11" fill="#8A8780" letter-spacing="1.5" font-weight="500">ACTIVE AGENTS</text>
+          <text x="20" y="76" font-family="ui-serif, Georgia, serif" font-size="34" font-weight="600" fill="#D97757">4</text>
+          <text x="20" y="100" font-size="12" fill="#8A8780">Currently working</text>
+        </g>
+        <!-- Card 4 -->
+        <g transform="translate(1080, 0)">
+          <rect width="340" height="116" rx="10" fill="#2F2E2C" stroke="#3D3B36"/>
+          <text x="20" y="30" font-size="11" fill="#8A8780" letter-spacing="1.5" font-weight="500">SPRINT</text>
+          <text x="20" y="76" font-family="ui-serif, Georgia, serif" font-size="28" font-weight="600" fill="#D4A24A">Sprint 3</text>
+          <text x="20" y="100" font-size="12" fill="#8A8780">MVP Launch · Day 8 / 14</text>
+        </g>
+      </g>
+
+      <!-- Agent team -->
+      <g transform="translate(40, 252)">
+        <rect width="1420" height="284" rx="10" fill="#2F2E2C" stroke="#3D3B36"/>
+        <g transform="translate(24, 24)">
+          <text font-family="ui-serif, Georgia, serif" font-size="17" font-weight="600" fill="#E8E6E3">Agent team</text>
+          <text y="20" font-family="ui-sans-serif, sans-serif" font-size="12" fill="#8A8780">Click any agent to view details</text>
+        </g>
+        <g transform="translate(1180, 24)" font-family="ui-sans-serif, sans-serif">
+          <rect width="92" height="30" rx="8" fill="transparent" stroke="#4D4A43"/>
+          <text x="46" y="20" font-size="12" fill="#E8E6E3" text-anchor="middle">Pause all</text>
+          <g transform="translate(104, 0)">
+            <rect width="92" height="30" rx="8" fill="transparent" stroke="rgba(196,100,78,0.4)"/>
+            <text x="46" y="20" font-size="12" fill="#C4644E" text-anchor="middle">Stop all</text>
+          </g>
+        </g>
+
+        <!-- Agent cards -->
+        <g transform="translate(24, 80)" font-family="ui-sans-serif, sans-serif">
+          <!-- CEO -->
+          <g>
+            <rect width="452" height="88" rx="8" fill="#262624" stroke="#3D3B36"/>
+            <rect x="16" y="20" width="44" height="44" rx="10" fill="#D97757"/>
+            <text x="38" y="50" font-family="ui-serif, Georgia, serif" font-size="18" font-weight="600" fill="#FFFFFF" text-anchor="middle">C</text>
+            <text x="76" y="36" font-size="14" font-weight="500" fill="#E8E6E3">Ava Kim</text>
+            <text x="76" y="54" font-size="11" fill="#8A8780" letter-spacing="1.5">CEO</text>
+            <!-- status pill -->
+            <g transform="translate(352, 22)">
+              <rect width="84" height="22" rx="11" fill="rgba(143,169,107,0.14)" stroke="rgba(143,169,107,0.28)"/>
+              <circle cx="12" cy="11" r="3.5" fill="#8FA96B"/>
+              <text x="22" y="15" font-size="11" fill="#8FA96B">working</text>
+            </g>
+            <text x="76" y="76" font-size="11" fill="#B4B1AB">Drafting Q2 launch narrative</text>
+          </g>
+          <!-- CTO -->
+          <g transform="translate(468, 0)">
+            <rect width="452" height="88" rx="8" fill="#262624" stroke="#3D3B36"/>
+            <rect x="16" y="20" width="44" height="44" rx="10" fill="#8FA96B"/>
+            <text x="38" y="50" font-family="ui-serif, Georgia, serif" font-size="18" font-weight="600" fill="#FFFFFF" text-anchor="middle">T</text>
+            <text x="76" y="36" font-size="14" font-weight="500" fill="#E8E6E3">Jun Park</text>
+            <text x="76" y="54" font-size="11" fill="#8A8780" letter-spacing="1.5">CTO</text>
+            <g transform="translate(352, 22)">
+              <rect width="84" height="22" rx="11" fill="rgba(143,169,107,0.14)" stroke="rgba(143,169,107,0.28)"/>
+              <circle cx="12" cy="11" r="3.5" fill="#8FA96B"/>
+              <text x="22" y="15" font-size="11" fill="#8FA96B">working</text>
+            </g>
+            <text x="76" y="76" font-size="11" fill="#B4B1AB">OAuth providers · Google / GitHub</text>
+          </g>
+          <!-- PO -->
+          <g transform="translate(936, 0)">
+            <rect width="452" height="88" rx="8" fill="#262624" stroke="#3D3B36"/>
+            <rect x="16" y="20" width="44" height="44" rx="10" fill="#D4A24A"/>
+            <text x="38" y="50" font-family="ui-serif, Georgia, serif" font-size="18" font-weight="600" fill="#FFFFFF" text-anchor="middle">P</text>
+            <text x="76" y="36" font-size="14" font-weight="500" fill="#E8E6E3">Soo Lee</text>
+            <text x="76" y="54" font-size="11" fill="#8A8780" letter-spacing="1.5">PO</text>
+            <g transform="translate(352, 22)">
+              <rect width="84" height="22" rx="11" fill="rgba(212,162,74,0.14)" stroke="rgba(212,162,74,0.28)"/>
+              <circle cx="12" cy="11" r="3.5" fill="#D4A24A"/>
+              <text x="22" y="15" font-size="11" fill="#D4A24A">meeting</text>
+            </g>
+            <text x="76" y="76" font-size="11" fill="#B4B1AB">Rate-limit strategy w/ CTO · QA</text>
+          </g>
+
+          <!-- Designer -->
+          <g transform="translate(0, 104)">
+            <rect width="452" height="88" rx="8" fill="#262624" stroke="#3D3B36"/>
+            <rect x="16" y="20" width="44" height="44" rx="10" fill="#B4766F"/>
+            <text x="38" y="50" font-family="ui-serif, Georgia, serif" font-size="18" font-weight="600" fill="#FFFFFF" text-anchor="middle">D</text>
+            <text x="76" y="36" font-size="14" font-weight="500" fill="#E8E6E3">Mia Choi</text>
+            <text x="76" y="54" font-size="11" fill="#8A8780" letter-spacing="1.5">DESIGNER</text>
+            <g transform="translate(352, 22)">
+              <rect width="84" height="22" rx="11" fill="rgba(143,169,107,0.14)" stroke="rgba(143,169,107,0.28)"/>
+              <circle cx="12" cy="11" r="3.5" fill="#8FA96B"/>
+              <text x="22" y="15" font-size="11" fill="#8FA96B">working</text>
+            </g>
+            <text x="76" y="76" font-size="11" fill="#B4B1AB">Hero mockup v2 · tokens.css sync</text>
+          </g>
+          <!-- QA -->
+          <g transform="translate(468, 104)">
+            <rect width="452" height="88" rx="8" fill="#262624" stroke="#3D3B36"/>
+            <rect x="16" y="20" width="44" height="44" rx="10" fill="#6FA3A0"/>
+            <text x="38" y="50" font-family="ui-serif, Georgia, serif" font-size="18" font-weight="600" fill="#FFFFFF" text-anchor="middle">Q</text>
+            <text x="76" y="36" font-size="14" font-weight="500" fill="#E8E6E3">Ethan Ryu</text>
+            <text x="76" y="54" font-size="11" fill="#8A8780" letter-spacing="1.5">QA</text>
+            <g transform="translate(352, 22)">
+              <rect width="84" height="22" rx="11" fill="rgba(143,169,107,0.14)" stroke="rgba(143,169,107,0.28)"/>
+              <circle cx="12" cy="11" r="3.5" fill="#8FA96B"/>
+              <text x="22" y="15" font-size="11" fill="#8FA96B">working</text>
+            </g>
+            <text x="76" y="76" font-size="11" fill="#B4B1AB">DB schema security audit (TASK-11)</text>
+          </g>
+          <!-- Marketer -->
+          <g transform="translate(936, 104)">
+            <rect width="452" height="88" rx="8" fill="#262624" stroke="#3D3B36"/>
+            <rect x="16" y="20" width="44" height="44" rx="10" fill="#C98B5B"/>
+            <text x="38" y="50" font-family="ui-serif, Georgia, serif" font-size="18" font-weight="600" fill="#FFFFFF" text-anchor="middle">M</text>
+            <text x="76" y="36" font-size="14" font-weight="500" fill="#E8E6E3">Noah Seo</text>
+            <text x="76" y="54" font-size="11" fill="#8A8780" letter-spacing="1.5">MARKETER</text>
+            <g transform="translate(352, 22)">
+              <rect width="84" height="22" rx="11" fill="#36352F" stroke="#3D3B36"/>
+              <circle cx="12" cy="11" r="3.5" fill="#8A8780"/>
+              <text x="22" y="15" font-size="11" fill="#B4B1AB">idle</text>
+            </g>
+            <text x="76" y="76" font-size="11" fill="#8A8780" font-style="italic">No active task</text>
+          </g>
+        </g>
+      </g>
+
+      <!-- Task distribution -->
+      <g transform="translate(40, 552)">
+        <rect width="1420" height="208" rx="10" fill="#2F2E2C" stroke="#3D3B36"/>
+        <text x="24" y="36" font-family="ui-serif, Georgia, serif" font-size="17" font-weight="600" fill="#E8E6E3">Task distribution</text>
+
+        <g transform="translate(24, 64)" font-family="ui-sans-serif, sans-serif">
+          <g>
+            <rect width="220" height="112" rx="8" fill="#262624" stroke="#3D3B36"/>
+            <text x="18" y="50" font-family="ui-serif, Georgia, serif" font-size="26" font-weight="600" fill="#E8E6E3">5</text>
+            <text x="18" y="80" font-size="12" fill="#8A8780">Backlog</text>
+          </g>
+          <g transform="translate(232, 0)">
+            <rect width="220" height="112" rx="8" fill="#262624" stroke="#3D3B36"/>
+            <text x="18" y="50" font-family="ui-serif, Georgia, serif" font-size="26" font-weight="600" fill="#E8E6E3">4</text>
+            <text x="18" y="80" font-size="12" fill="#8A8780">To do</text>
+          </g>
+          <g transform="translate(464, 0)">
+            <rect width="220" height="112" rx="8" fill="#262624" stroke="#3D3B36"/>
+            <text x="18" y="50" font-family="ui-serif, Georgia, serif" font-size="26" font-weight="600" fill="#D97757">3</text>
+            <text x="18" y="80" font-size="12" fill="#8A8780">In progress</text>
+          </g>
+          <g transform="translate(696, 0)">
+            <rect width="220" height="112" rx="8" fill="#262624" stroke="#3D3B36"/>
+            <text x="18" y="50" font-family="ui-serif, Georgia, serif" font-size="26" font-weight="600" fill="#D4A24A">2</text>
+            <text x="18" y="80" font-size="12" fill="#8A8780">Review</text>
+          </g>
+          <g transform="translate(928, 0)">
+            <rect width="220" height="112" rx="8" fill="#262624" stroke="#3D3B36"/>
+            <text x="18" y="50" font-family="ui-serif, Georgia, serif" font-size="26" font-weight="600" fill="#D4A24A">1</text>
+            <text x="18" y="80" font-size="12" fill="#8A8780">Testing</text>
+          </g>
+          <g transform="translate(1160, 0)">
+            <rect width="208" height="112" rx="8" fill="#262624" stroke="#3D3B36"/>
+            <text x="18" y="50" font-family="ui-serif, Georgia, serif" font-size="26" font-weight="600" fill="#8FA96B">19</text>
+            <text x="18" y="80" font-size="12" fill="#8A8780">Done</text>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

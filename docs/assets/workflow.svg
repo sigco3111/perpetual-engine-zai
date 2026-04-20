@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 760" width="1600" height="760">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#262624"/>
+      <stop offset="100%" stop-color="#1F1E1C"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#3D3B36" stroke-width="0.5" stroke-opacity="0.5"/>
+    </pattern>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#4D4A43"/>
+    </marker>
+    <marker id="loopArrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#D97757"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="760" fill="url(#bg)"/>
+  <rect width="1600" height="760" fill="url(#grid)"/>
+
+  <!-- Header -->
+  <g transform="translate(80, 64)">
+    <text font-family="ui-serif, Georgia, serif" font-size="34" font-weight="600" fill="#E8E6E3" letter-spacing="-0.5">Sprint workflow</text>
+    <text y="30" font-family="ui-sans-serif, sans-serif" font-size="14" fill="#8A8780">Each phase runs in its own Claude Code session · hand-off via Markdown docs</text>
+  </g>
+
+  <!-- Five stages -->
+  <g font-family="ui-sans-serif, sans-serif">
+    <!-- Planning -->
+    <g transform="translate(80, 190)">
+      <rect width="260" height="170" rx="14" fill="#2F2E2C" stroke="#D4A24A" stroke-width="1.4"/>
+      <g transform="translate(20, 20)">
+        <rect width="36" height="36" rx="8" fill="rgba(212,162,74,0.16)" stroke="#D4A24A" stroke-width="1"/>
+        <text x="18" y="24" text-anchor="middle" font-family="ui-serif, Georgia, serif" font-size="14" font-weight="600" fill="#D4A24A">1</text>
+      </g>
+      <text x="70" y="36" font-size="11" fill="#8A8780" letter-spacing="1.5">PHASE 01</text>
+      <text x="70" y="56" font-family="ui-serif, Georgia, serif" font-size="20" font-weight="600" fill="#E8E6E3">Planning</text>
+      <text x="20" y="96" font-size="12" fill="#B4B1AB">PO, CEO</text>
+      <g transform="translate(20, 108)" font-family="ui-monospace, Menlo, monospace" font-size="11" fill="#8A8780">
+        <text y="14">· hypothesis + KPI</text>
+        <text y="30">· baseline / target</text>
+        <text y="46">· checkpoints</text>
+      </g>
+    </g>
+
+    <!-- Design -->
+    <g transform="translate(360, 190)">
+      <rect width="260" height="170" rx="14" fill="#2F2E2C" stroke="#B4766F" stroke-width="1.4"/>
+      <g transform="translate(20, 20)">
+        <rect width="36" height="36" rx="8" fill="rgba(180,118,111,0.16)" stroke="#B4766F" stroke-width="1"/>
+        <text x="18" y="24" text-anchor="middle" font-family="ui-serif, Georgia, serif" font-size="14" font-weight="600" fill="#B4766F">2</text>
+      </g>
+      <text x="70" y="36" font-size="11" fill="#8A8780" letter-spacing="1.5">PHASE 02</text>
+      <text x="70" y="56" font-family="ui-serif, Georgia, serif" font-size="20" font-weight="600" fill="#E8E6E3">Design</text>
+      <text x="20" y="96" font-size="12" fill="#B4B1AB">Designer</text>
+      <g transform="translate(20, 108)" font-family="ui-monospace, Menlo, monospace" font-size="11" fill="#8A8780">
+        <text y="14">· tokens.css / components</text>
+        <text y="30">· HTML mockups</text>
+        <text y="46">· Design canvas preview</text>
+      </g>
+    </g>
+
+    <!-- Development -->
+    <g transform="translate(640, 190)">
+      <rect width="260" height="170" rx="14" fill="#2F2E2C" stroke="#8FA96B" stroke-width="1.4"/>
+      <g transform="translate(20, 20)">
+        <rect width="36" height="36" rx="8" fill="rgba(143,169,107,0.16)" stroke="#8FA96B" stroke-width="1"/>
+        <text x="18" y="24" text-anchor="middle" font-family="ui-serif, Georgia, serif" font-size="14" font-weight="600" fill="#8FA96B">3</text>
+      </g>
+      <text x="70" y="36" font-size="11" fill="#8A8780" letter-spacing="1.5">PHASE 03</text>
+      <text x="70" y="56" font-family="ui-serif, Georgia, serif" font-size="20" font-weight="600" fill="#E8E6E3">Development</text>
+      <text x="20" y="96" font-size="12" fill="#B4B1AB">CTO</text>
+      <g transform="translate(20, 108)" font-family="ui-monospace, Menlo, monospace" font-size="11" fill="#8A8780">
+        <text y="14">· reference HTML mockups</text>
+        <text y="30">· implement + commit</text>
+        <text y="46">· /simplify review</text>
+      </g>
+    </g>
+
+    <!-- Testing -->
+    <g transform="translate(920, 190)">
+      <rect width="260" height="170" rx="14" fill="#2F2E2C" stroke="#6FA3A0" stroke-width="1.4"/>
+      <g transform="translate(20, 20)">
+        <rect width="36" height="36" rx="8" fill="rgba(111,163,160,0.16)" stroke="#6FA3A0" stroke-width="1"/>
+        <text x="18" y="24" text-anchor="middle" font-family="ui-serif, Georgia, serif" font-size="14" font-weight="600" fill="#6FA3A0">4</text>
+      </g>
+      <text x="70" y="36" font-size="11" fill="#8A8780" letter-spacing="1.5">PHASE 04</text>
+      <text x="70" y="56" font-family="ui-serif, Georgia, serif" font-size="20" font-weight="600" fill="#E8E6E3">Testing</text>
+      <text x="20" y="96" font-size="12" fill="#B4B1AB">QA</text>
+      <g transform="translate(20, 108)" font-family="ui-monospace, Menlo, monospace" font-size="11" fill="#8A8780">
+        <text y="14">· security-review</text>
+        <text y="30">· audit-website</text>
+        <text y="46">· regression + a11y</text>
+      </g>
+    </g>
+
+    <!-- Launch -->
+    <g transform="translate(1200, 190)">
+      <rect width="260" height="170" rx="14" fill="#2F2E2C" stroke="#D97757" stroke-width="1.4"/>
+      <g transform="translate(20, 20)">
+        <rect width="36" height="36" rx="8" fill="rgba(217,119,87,0.16)" stroke="#D97757" stroke-width="1"/>
+        <text x="18" y="24" text-anchor="middle" font-family="ui-serif, Georgia, serif" font-size="14" font-weight="600" fill="#D97757">5</text>
+      </g>
+      <text x="70" y="36" font-size="11" fill="#8A8780" letter-spacing="1.5">PHASE 05</text>
+      <text x="70" y="56" font-family="ui-serif, Georgia, serif" font-size="20" font-weight="600" fill="#E8E6E3">Launch</text>
+      <text x="20" y="96" font-size="12" fill="#B4B1AB">CEO, Marketer</text>
+      <g transform="translate(20, 108)" font-family="ui-monospace, Menlo, monospace" font-size="11" fill="#8A8780">
+        <text y="14">· deploy</text>
+        <text y="30">· launch-strategy</text>
+        <text y="46">· paid-ads / seo-audit</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Arrows between phases -->
+  <g stroke="#4D4A43" stroke-width="1.6" fill="none">
+    <path d="M 340 275 L 360 275" marker-end="url(#arrow)"/>
+    <path d="M 620 275 L 640 275" marker-end="url(#arrow)"/>
+    <path d="M 900 275 L 920 275" marker-end="url(#arrow)"/>
+    <path d="M 1180 275 L 1200 275" marker-end="url(#arrow)"/>
+  </g>
+
+  <!-- Feedback loop (orange) -->
+  <g stroke="#D97757" stroke-width="1.6" fill="none" stroke-dasharray="6 5" stroke-opacity="0.7">
+    <path d="M 1330 360 C 1330 440, 860 440, 210 440 L 210 360" marker-end="url(#loopArrow)"/>
+  </g>
+  <g transform="translate(720, 432)" font-family="ui-sans-serif, sans-serif">
+    <rect width="170" height="24" x="-85" y="-13" rx="12" fill="#262624" stroke="#D97757" stroke-opacity="0.6"/>
+    <text text-anchor="middle" y="4" font-size="12" fill="#E49477">next sprint · iterate</text>
+  </g>
+
+  <!-- Parallel rails -->
+  <g transform="translate(80, 510)">
+    <text font-family="ui-serif, Georgia, serif" font-size="15" font-weight="600" fill="#E8E6E3">Running in parallel at every phase</text>
+    <text y="22" font-family="ui-sans-serif, sans-serif" font-size="12" fill="#8A8780">Metrics · meetings · consultants · user intervention keep the loop alive.</text>
+
+    <g transform="translate(0, 46)" font-family="ui-sans-serif, sans-serif">
+      <!-- Metrics -->
+      <g>
+        <rect width="346" height="130" rx="12" fill="#2F2E2C" stroke="#3D3B36"/>
+        <g transform="translate(16, 16)">
+          <rect width="32" height="32" rx="8" fill="rgba(212,162,74,0.16)"/>
+          <text x="16" y="22" text-anchor="middle" font-family="ui-serif, Georgia, serif" font-size="15" font-weight="600" fill="#D4A24A">M</text>
+        </g>
+        <text x="60" y="36" font-family="ui-serif, Georgia, serif" font-size="16" font-weight="600" fill="#E8E6E3">Metrics checkpoints</text>
+        <text x="60" y="54" font-size="11" fill="#8A8780">Every plan has KPI + period + verdict</text>
+        <g transform="translate(16, 78)" font-family="ui-monospace, Menlo, monospace" font-size="11" fill="#B4B1AB">
+          <text y="14">baseline → target → checkpoint</text>
+          <text y="30">verdict: scale / maintain / iterate / pivot / kill</text>
+        </g>
+      </g>
+
+      <!-- Meetings -->
+      <g transform="translate(366, 0)">
+        <rect width="346" height="130" rx="12" fill="#2F2E2C" stroke="#3D3B36"/>
+        <g transform="translate(16, 16)">
+          <rect width="32" height="32" rx="8" fill="rgba(143,169,107,0.16)"/>
+          <text x="16" y="22" text-anchor="middle" font-family="ui-serif, Georgia, serif" font-size="15" font-weight="600" fill="#8FA96B">M</text>
+        </g>
+        <text x="60" y="36" font-family="ui-serif, Georgia, serif" font-size="16" font-weight="600" fill="#E8E6E3">Multi-agent meetings</text>
+        <text x="60" y="54" font-size="11" fill="#8A8780">Issue → invite participants → minutes</text>
+        <g transform="translate(16, 78)" font-family="ui-monospace, Menlo, monospace" font-size="11" fill="#B4B1AB">
+          <text y="14">meeting_invite · participantRoles</text>
+          <text y="30">relatedTaskIds · docs/meetings/</text>
+        </g>
+      </g>
+
+      <!-- Consultants -->
+      <g transform="translate(732, 0)">
+        <rect width="346" height="130" rx="12" fill="#2F2E2C" stroke="#3D3B36"/>
+        <g transform="translate(16, 16)">
+          <rect width="32" height="32" rx="8" fill="rgba(217,119,87,0.16)"/>
+          <text x="16" y="22" text-anchor="middle" font-family="ui-serif, Georgia, serif" font-size="15" font-weight="600" fill="#D97757">E</text>
+        </g>
+        <text x="60" y="36" font-family="ui-serif, Georgia, serif" font-size="16" font-weight="600" fill="#E8E6E3">Expert consultants</text>
+        <text x="60" y="54" font-size="11" fill="#8A8780">Spawn any expertise on demand</text>
+        <g transform="translate(16, 78)" font-family="ui-monospace, Menlo, monospace" font-size="11" fill="#B4B1AB">
+          <text y="14">consultation_request · expertise</text>
+          <text y="30">advise → auto-destruct (5 min)</text>
+        </g>
+      </g>
+
+      <!-- Intervention -->
+      <g transform="translate(1098, 0)">
+        <rect width="346" height="130" rx="12" fill="#2F2E2C" stroke="#3D3B36"/>
+        <g transform="translate(16, 16)">
+          <rect width="32" height="32" rx="8" fill="rgba(201,139,91,0.16)"/>
+          <text x="16" y="22" text-anchor="middle" font-family="ui-serif, Georgia, serif" font-size="15" font-weight="600" fill="#C98B5B">U</text>
+        </g>
+        <text x="60" y="36" font-family="ui-serif, Georgia, serif" font-size="16" font-weight="600" fill="#E8E6E3">User intervention</text>
+        <text x="60" y="54" font-size="11" fill="#8A8780">Messages · pause · redirect anytime</text>
+        <g transform="translate(16, 78)" font-family="ui-monospace, Menlo, monospace" font-size="11" fill="#B4B1AB">
+          <text y="14">perpetual-engine message "..."</text>
+          <text y="30">pause / resume / stop / task run</text>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
