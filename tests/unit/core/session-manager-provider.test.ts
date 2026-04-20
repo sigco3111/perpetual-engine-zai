@@ -147,7 +147,7 @@ describe('SessionManager provider-aware command generation', () => {
     }
   });
 
-  it('concurrency: limit 1 blocks second same-model session', async () => {
+  it('concurrency: limit 1 queues second same-model session until slot frees', async () => {
     const tmux = new MockTmuxAdapter();
     const sm = new SessionManager(tmux);
     const projectRoot = await setupProjectRoot();
@@ -155,7 +155,6 @@ describe('SessionManager provider-aware command generation', () => {
     try {
       const cfg = configWithProvider({ concurrency: { rules: [{ model: 'test-model', limit: 1 }] } as any } as Partial<ProjectConfig>);
 
-      // load concurrency rules into session manager
       sm.configureConcurrency({ concurrency: { rules: [{ model: 'test-model', limit: 1 }] } });
 
       // start first session — should succeed
@@ -163,12 +162,23 @@ describe('SessionManager provider-aware command generation', () => {
       expect(s1).toBeDefined();
       expect(tmux.createCalls.length).toBe(1);
 
-      // attempt to start second session with same role/model — simulate different role by cloning agent
+      // second session with same model should NOT throw — it queues internally
+      // (previously it threw, now acquire() queues and waits for a slot)
       const otherAgent = { ...baseAgent, role: 'ceo2', name: 'CEO Two' } as AgentConfig;
-      // map new role to same provider
       cfg.agent_providers.mapping['ceo2'] = 'test-provider';
 
-      await expect(sm.startAgent({ agent: otherAgent, config: cfg, projectRoot })).rejects.toThrow(/Concurrency limit reached/i);
+      // startAgent will queue and wait — it won't resolve until s1 is stopped
+      const s2Promise = sm.startAgent({ agent: otherAgent, config: cfg, projectRoot });
+
+      // give it a moment to queue (should NOT have created a second tmux session yet)
+      await new Promise(r => setTimeout(r, 100));
+      expect(tmux.createCalls.length).toBe(1); // still only 1 session created
+
+      // stop the first session — this should free the slot and allow s2 to proceed
+      await sm.stopAgent('ceo');
+      const s2 = await s2Promise;
+      expect(s2).toBeDefined();
+      expect(tmux.createCalls.length).toBe(2); // now second session created
     } finally {
       await cleanupProjectRoot();
     }

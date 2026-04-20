@@ -18,9 +18,9 @@ export interface ProviderConfig {
   args?: ProviderArgs;
   /** HTTP API 설정 (http-api 타입인 경우) */
   api?: {
-    baseUrl: string;
+    baseUrl?: string;
     apiKey?: string;
-    model: string;
+    model?: string;
     headers?: Record<string, string>;
   };
   /** 동시 실행 제한 (기본: 1) */
