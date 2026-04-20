@@ -1,7 +1,13 @@
 import type { AgentConfig } from './agent-types.js';
+import type { EnhancedAgentSkill } from './agent-skills.js';
 import type { Task, WorkflowPhase } from '../state/types.js';
 import type { ProjectConfig } from '../project/config.js';
 import type { ComponentSpec } from '../workflow/components.js';
+
+/** Runtime type guard: true when the skill carries EnhancedAgentSkill fields */
+function hasInstruction(skill: AgentConfig['skills'][number]): skill is EnhancedAgentSkill {
+  return 'instruction' in skill;
+}
 
 export class PromptBuilder {
   buildSystemPrompt(params: {
@@ -156,17 +162,34 @@ ${contextDocs.map(d => `- ${d}`).join('\n')}`);
   }
 
   /** 에이전트 전용 스킬 섹션 생성 */
-  private buildSkillsSection(agent: AgentConfig): string {
+  private buildSkillsSection(agent: AgentConfig, providerType?: string): string {
     const lines: string[] = ['\n\n## 사용 가능한 스킬'];
     lines.push(`당신(${agent.name})은 다음 스킬을 사용할 수 있습니다. 해당 상황이 되면 적극적으로 활용하세요.`);
     lines.push('');
-    for (const skill of agent.skills) {
-      lines.push(`### /${skill.name}`);
-      lines.push(`- 설명: ${skill.description}`);
-      lines.push(`- 사용 시점: ${skill.when_to_use}`);
-      lines.push('');
+
+    if (providerType === 'claude-code' || providerType === undefined) {
+      for (const skill of agent.skills) {
+        lines.push(`### /${skill.name}`);
+        lines.push(`- 설명: ${skill.description}`);
+        lines.push(`- 사용 시점: ${skill.when_to_use}`);
+        lines.push('');
+      }
+      lines.push('> 스킬을 사용하려면 슬래시 명령어(예: /launch-strategy)를 실행하세요.');
+    } else {
+      for (const skill of agent.skills) {
+        lines.push(`### ${skill.name}`);
+        lines.push(`- 설명: ${skill.description}`);
+        lines.push(`- 사용 시점: ${skill.when_to_use}`);
+        const instruction = hasInstruction(skill) && skill.instruction
+          ? skill.instruction
+          : '이 스킬은 특별한 지침이 없습니다.';
+        lines.push(`- 지침:`);
+        lines.push(`  ${instruction}`);
+        lines.push('');
+      }
+      lines.push('> 이 스킬은 프롬프트 지시로 활성화됩니다. 해당 상황에서 위 지침을 자동으로 적용하세요.');
     }
-    lines.push('> 스킬을 사용하려면 슬래시 명령어(예: /launch-strategy)를 실행하세요.');
+
     return lines.join('\n');
   }
 

@@ -4,7 +4,7 @@
  * 원본 Perpetual Engine의 Claude Code CLI 호출 로직을 어댑터로 캡슐화합니다.
  */
 
-import type { ProviderAdapter, ProviderConfig, BuildCommandResult, McpServerConfig } from './provider-adapter.js';
+import type { ProviderAdapter, ProviderConfig, BuildCommandResult, McpServerConfig } from '../provider-adapter.js';
 
 export class ClaudeCodeAdapter implements ProviderAdapter {
   readonly type = 'claude-code' as const;

@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ProjectManager } from '../../core/project/project-manager.js';
-import { runSetupPrompts } from '../utils/prompts.js';
+import { runSetupPrompts, runProviderSetupPrompts } from '../utils/prompts.js';
 import { logger } from '../../utils/logger.js';
 import { getProjectPaths } from '../../utils/paths.js';
 
@@ -37,6 +37,62 @@ export function registerSetupCommand(program: Command): void {
       config.constraints.deploy_target = answers.deployTarget;
 
       await manager.saveConfig(config);
+
+      // ZAI 프로바이더 설정
+      const providerAnswers = await runProviderSetupPrompts();
+      if (providerAnswers.useZaiProvider) {
+        const baseUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+
+        config.default_provider = 'zai-general';
+        config.providers = {
+          'zai-coding': {
+            type: 'http-api',
+            api: {
+              baseUrl,
+              apiKey: providerAnswers.apiKey,
+              model: providerAnswers.codingModel ?? 'glm-5-turbo',
+              headers: {},
+            },
+            maxConcurrency: 1,
+          },
+          'zai-general': {
+            type: 'http-api',
+            api: {
+              baseUrl,
+              apiKey: providerAnswers.apiKey,
+              model: providerAnswers.generalModel ?? 'glm-4.5',
+              headers: {},
+            },
+            maxConcurrency: 10,
+          },
+        };
+        config.agent_providers = {
+          mapping: {
+            cto: 'zai-coding',
+            ceo: 'zai-general',
+            po: 'zai-general',
+            designer: 'zai-general',
+            qa: 'zai-general',
+            marketer: 'zai-general',
+          },
+          overrides: {},
+        };
+        config.concurrency = {
+          defaults: {},
+          rules: [
+            { model: 'glm-5-turbo', limit: 1 },
+            { model: 'glm-5', limit: 2 },
+            { model: 'glm-5\\.1', limit: 1 },
+            { model: 'glm-4\\.5$', limit: 10 },
+            { model: 'glm-4-plus', limit: 20 },
+          ],
+        };
+
+        await manager.saveConfig(config);
+        logger.success('ZAI 프로바이더 설정이 완료되었습니다!');
+      } else {
+        logger.info('Claude Code CLI를 사용합니다.');
+      }
 
       // vision 문서 생성
       const paths = getProjectPaths(projectRoot);

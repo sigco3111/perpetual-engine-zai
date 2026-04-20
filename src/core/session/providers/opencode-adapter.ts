@@ -10,7 +10,7 @@
  * - 세션 ID 관리 방식이 다름
  */
 
-import type { ProviderAdapter, ProviderConfig, BuildCommandResult, McpServerConfig } from './provider-adapter.js';
+import type { ProviderAdapter, ProviderConfig, BuildCommandResult, McpServerConfig } from '../provider-adapter.js';
 
 export class OpenCodeAdapter implements ProviderAdapter {
   readonly type = 'opencode' as const;
