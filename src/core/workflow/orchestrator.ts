@@ -149,6 +149,14 @@ export class Orchestrator {
     if (this.dashboardEnabled) {
       this.dashboard = new DashboardServer(this.projectRoot, this.dashboardPort, {
         sessionManager: this.sessionManager,
+        onRestartAgents: async () => {
+          await this.resumeInFlightTasks();
+          await this.processNewTasks();
+        },
+        onTaskResumed: async (_taskId: string) => {
+          await this.resumeInFlightTasks();
+          await this.processNewTasks();
+        },
       });
       await this.dashboard.start();
     }
@@ -437,11 +445,16 @@ export class Orchestrator {
 
   private async processNewMessages(): Promise<void> {
     const messages = await this.messageQueue.getAll();
+    const agentRoles = new Set(this.agentRegistry.getRoles());
     const unread = messages.filter(m => !m.read && !this.processedMessages.has(m.id));
 
     for (const msg of unread) {
       this.processedMessages.add(msg.id);
       await this.messageQueue.markAsRead(msg.id);
+
+      if (agentRoles.has(msg.from) && msg.type === 'info') {
+        continue;
+      }
 
       // 자문 요청 메시지 처리
       if (msg.type === 'consultation_request') {
@@ -465,6 +478,26 @@ export class Orchestrator {
 
       logger.info(`메시지 전달: "${msg.content}" → ${targetRole}`);
 
+      const replyTo = msg.from || 'investor';
+      await this.messageQueue.send({
+        from: targetRole,
+        to: replyTo,
+        type: 'info',
+        content: `[${targetRole}] 메시지를 수신했습니다: "${msg.content}"\n작업을 시작합니다...`,
+      });
+      logger.info(`확인 응답 전송: ${targetRole} → ${replyTo}`);
+
+      this.dispatchMessageToAgent(agent, msg.content, targetRole, replyTo);
+    }
+  }
+
+  private async dispatchMessageToAgent(
+    agent: AgentConfig,
+    messageContent: string,
+    targetRole: string,
+    replyTo: string,
+  ): Promise<void> {
+    try {
       const allTasks = await this.kanban.getAllTasks();
       const builder = new PromptBuilder();
       const kanbanSummary = builder.buildKanbanSummary(allTasks);
@@ -479,9 +512,65 @@ export class Orchestrator {
         contextDocs: ['docs/vision/company-goal.md', 'docs/vision/product-vision.md'],
         kanbanSummary,
         projectRoot: this.projectRoot,
-        message: msg.content,
+        message: messageContent,
       });
+    } catch (err) {
+      logger.error(`메시지 에이전트 시작 실패: ${(err as Error).message}`);
+      await this.messageQueue.send({
+        from: targetRole,
+        to: replyTo,
+        type: 'info',
+        content: `[${targetRole}] 에이전트 시작 실패: ${(err as Error).message}`,
+      });
+      return;
     }
+
+    this.watchAgentReply(targetRole, replyTo);
+  }
+
+  private watchAgentReply(role: string, replyTo: string): void {
+    const pollMs = 5000;
+    let elapsed = 0;
+    const maxMs = 10 * 60 * 1000;
+    let lastSentLength = 0;
+    const timer = setInterval(async () => {
+      if (!this.running) { clearInterval(timer); return; }
+      elapsed += pollMs;
+      try {
+        const running = await this.sessionManager.isAgentRunning(role);
+        const log = await this.sessionManager.getAgentLog(role, 80);
+        const trimmed = log.trim();
+
+        if (!running) {
+          clearInterval(timer);
+          const tail = trimmed.slice(-2000);
+          await this.messageQueue.send({
+            from: role,
+            to: replyTo,
+            type: 'info',
+            content: tail
+              ? `[${role}] 작업 완료:\n${tail}`
+              : `[${role}] 작업 완료 (로그 없음)`,
+          });
+          logger.info(`에이전트 최종 응답: ${role} → ${replyTo}`);
+          return;
+        }
+
+        if (elapsed >= 15000 && trimmed.length > lastSentLength + 100) {
+          const newOutput = trimmed.slice(lastSentLength).slice(-1500);
+          lastSentLength = trimmed.length;
+          await this.messageQueue.send({
+            from: role,
+            to: replyTo,
+            type: 'info',
+            content: `[${role}] 작업 중:\n${newOutput}`,
+          });
+          logger.info(`에이전트 중간 응답: ${role} → ${replyTo}`);
+        }
+
+        if (elapsed >= maxMs) { clearInterval(timer); }
+      } catch { clearInterval(timer); }
+    }, pollMs);
   }
 
   /**

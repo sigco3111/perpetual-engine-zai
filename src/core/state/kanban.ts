@@ -180,7 +180,8 @@ export class KanbanManager {
       const tasks = board.tasks.map(t => {
         if (t.id === taskId) {
           if (t.status !== 'suspended') {
-            throw new Error(`중단 상태가 아닌 태스크입니다: ${taskId} (현재: ${t.status})`);
+            updated = t;
+            return t;
           }
           const restoreTo = t.suspended_from ?? 'todo';
           updated = {

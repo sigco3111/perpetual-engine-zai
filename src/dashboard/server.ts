@@ -22,8 +22,9 @@ import type { FSWatcher } from 'chokidar';
  * 테스트에서 MockTmuxAdapter 가 주입된 SessionManager 를 공유할 때 사용한다.
  */
 export interface DashboardServerOptions {
-  /** 외부에서 주입하는 SessionManager (tmux 목으로 교체된 버전) */
   sessionManager?: SessionManager;
+  onRestartAgents?: () => Promise<void>;
+  onTaskResumed?: (taskId: string) => Promise<void>;
 }
 
 export class DashboardServer {
@@ -38,6 +39,8 @@ export class DashboardServer {
   private messageQueue: MessageQueue;
   private watcher: FSWatcher | null = null;
   private port: number;
+  private onRestartAgents?: () => Promise<void>;
+  private onTaskResumed?: (taskId: string) => Promise<void>;
 
   constructor(projectRoot: string, port = 3000, options?: DashboardServerOptions) {
     this.projectRoot = projectRoot;
@@ -50,6 +53,8 @@ export class DashboardServer {
     this.sessionManager = options?.sessionManager ?? new SessionManager();
     this.sessionManager.setProjectRoot(projectRoot);
     this.messageQueue = new MessageQueue(paths.messages);
+    this.onRestartAgents = options?.onRestartAgents;
+    this.onTaskResumed = options?.onTaskResumed;
 
     this.app = express();
     this.app.use(cors());
@@ -130,7 +135,15 @@ export class DashboardServer {
     this.app.get('/api/kanban', async (_req, res) => {
       try {
         const board = await this.kanban.getBoard();
-        res.json(board);
+        const grouped: Record<string, Task[]> = {
+          backlog: [], todo: [], in_progress: [], review: [], testing: [], done: [], suspended: [],
+        };
+        for (const t of board.tasks) {
+          const key = t.status ?? 'backlog';
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(t);
+        }
+        res.json(grouped);
       } catch (err) {
         res.status(500).json({ error: (err as Error).message });
       }
@@ -209,6 +222,11 @@ export class DashboardServer {
       try {
         const task = await this.kanban.resumeTask(req.params.id);
         this.broadcast({ type: 'task_updated', data: task });
+        if (this.onTaskResumed) {
+          this.onTaskResumed(req.params.id).catch(err => {
+            logger.error(`태스크 재개 디스패치 오류: ${(err as Error).message}`);
+          });
+        }
         res.json({ message: `${task.id} 재개 → ${task.status}`, task });
       } catch (err) {
         res.status(500).json({ error: (err as Error).message });
@@ -365,6 +383,19 @@ export class DashboardServer {
       try {
         await this.sessionManager.stopAll();
         res.json({ success: true });
+      } catch (err) {
+        res.status(500).json({ error: (err as Error).message });
+      }
+    });
+
+    this.app.post('/api/agents/restart', async (_req, res) => {
+      try {
+        if (this.onRestartAgents) {
+          await this.onRestartAgents();
+          res.json({ success: true });
+        } else {
+          res.status(501).json({ error: 'Restart not available' });
+        }
       } catch (err) {
         res.status(500).json({ error: (err as Error).message });
       }
