@@ -10,9 +10,9 @@ export const providerConfigSchema = z.object({
   binary: z.string().optional(),
   /** HTTP API 설정 */
   api: z.object({
-    baseUrl: z.string(),
+    baseUrl: z.string().optional(),
     apiKey: z.string().optional(),
-    model: z.string().default('glm-4-flash'),
+    model: z.string().optional(),
     headers: z.record(z.string()).default({}),
   }).optional(),
   /** 동시 실행 제한 */

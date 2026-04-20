@@ -194,13 +194,10 @@ export class SessionManager {
       const adapter = createProviderAdapter(adapterConfig);
       const mcpConfig = this.buildMcpConfigObject(agent, config);
 
-      // Concurrency handling for HTTP/API providers: enforce model-level limit
       const providerKey = adapter.type;
       const modelKey = adapterConfig.api?.model ?? 'default';
-      const available = this.concurrencyLimiter.getAvailableSlots(providerKey, modelKey);
-      if (available <= 0) {
-        throw new Error(`Concurrency limit reached for ${providerKey}:${modelKey} (0 available). Role: ${agent.role}`);
-      }
+
+      // acquire() queues internally when slots are full — no pre-check throw needed.
 
       // We'll use the limiter.acquire to reserve a slot for the lifetime of the session.
       // The execute callback will create the tmux session and then await a resolver that is
