@@ -118,18 +118,31 @@ export interface ProviderSetupAnswers {
   generalModel?: string;
 }
 
+export type ProviderChoice = 'claude-code' | 'opencode' | 'zai-api' | 'mixed-opencode-zai' | 'mixed-claude-zai';
+
+export interface ProviderSetupAnswers {
+  useZaiProvider: boolean;
+  providerChoice?: ProviderChoice;
+  apiKey?: string;
+  codingModel?: string;
+  generalModel?: string;
+}
+
 export async function runProviderSetupPrompts(): Promise<ProviderSetupAnswers> {
-  const useZaiProvider = await select({
+  const providerChoice = await select<ProviderChoice>({
     message: 'AI 프로바이더를 선택하세요:',
     choices: [
-      { name: 'Claude Code CLI (원본)', value: false },
-      { name: 'ZAI GLM API (멀티 프로바이더)', value: true },
+      { name: 'Claude Code CLI (원본)', value: 'claude-code' as ProviderChoice },
+      { name: 'OpenCode CLI (oh-my-openagent)', value: 'opencode' as ProviderChoice },
+      { name: 'ZAI GLM API (HTTP API 전용)', value: 'zai-api' as ProviderChoice },
+      { name: 'OpenCode + ZAI 혼합 (추천: 코딩은 OpenCode, 나머지는 ZAI)', value: 'mixed-opencode-zai' as ProviderChoice },
+      { name: 'Claude Code + ZAI 혼합 (코딩은 Claude, 나머지는 ZAI)', value: 'mixed-claude-zai' as ProviderChoice },
     ],
-    default: false,
+    default: 'mixed-opencode-zai' as ProviderChoice,
   });
 
-  if (!useZaiProvider) {
-    return { useZaiProvider: false };
+  if (providerChoice === 'claude-code' || providerChoice === 'opencode') {
+    return { useZaiProvider: false, providerChoice };
   }
 
   const apiKey = await input({
@@ -157,5 +170,5 @@ export async function runProviderSetupPrompts(): Promise<ProviderSetupAnswers> {
     default: 'glm-4.5',
   });
 
-  return { useZaiProvider: true, apiKey, codingModel, generalModel };
+  return { useZaiProvider: true, providerChoice, apiKey, codingModel, generalModel };
 }

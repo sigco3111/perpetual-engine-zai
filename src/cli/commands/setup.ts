@@ -3,6 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { ProjectManager } from '../../core/project/project-manager.js';
 import { runSetupPrompts, runProviderSetupPrompts } from '../utils/prompts.js';
+import type { ProviderChoice } from '../utils/prompts.js';
 import { logger } from '../../utils/logger.js';
 import { getProjectPaths } from '../../utils/paths.js';
 
@@ -38,43 +39,71 @@ export function registerSetupCommand(program: Command): void {
 
       await manager.saveConfig(config);
 
-      // ZAI 프로바이더 설정
       const providerAnswers = await runProviderSetupPrompts();
-      if (providerAnswers.useZaiProvider) {
-        const baseUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+      const choice: ProviderChoice = providerAnswers.providerChoice ?? (providerAnswers.useZaiProvider ? 'zai-api' : 'claude-code');
 
-        config.default_provider = 'zai-general';
+      const baseUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+
+      if (choice === 'claude-code') {
+        config.default_provider = 'claude-code';
+        logger.info('Claude Code CLI를 사용합니다.');
+      } else if (choice === 'opencode') {
+        config.default_provider = 'opencode-glm47';
+        const headers: Record<string, string> = {};
         config.providers = {
-          'zai-coding': {
-            type: 'http-api',
-            api: {
-              baseUrl,
-              apiKey: providerAnswers.apiKey,
-              model: providerAnswers.codingModel ?? 'glm-5-turbo',
-              headers: {},
-            },
+          'opencode-glm51': {
+            type: 'opencode' as const,
+            binary: 'opencode',
+            api: { model: 'zai-coding-plan/glm-5.1', headers },
             maxConcurrency: 1,
           },
-          'zai-general': {
-            type: 'http-api',
-            api: {
-              baseUrl,
-              apiKey: providerAnswers.apiKey,
-              model: providerAnswers.generalModel ?? 'glm-4.5',
-              headers: {},
-            },
-            maxConcurrency: 10,
+          'opencode-glm47': {
+            type: 'opencode' as const,
+            binary: 'opencode',
+            api: { model: 'zai-coding-plan/glm-4.7', headers },
+            maxConcurrency: 2,
+          },
+          'opencode-glm46v': {
+            type: 'opencode' as const,
+            binary: 'opencode',
+            api: { model: 'zai-coding-plan/glm-4.6v', headers },
+            maxConcurrency: 2,
+          },
+          'opencode-glm46': {
+            type: 'opencode' as const,
+            binary: 'opencode',
+            api: { model: 'zai-coding-plan/glm-4.6', headers },
+            maxConcurrency: 3,
           },
         };
         config.agent_providers = {
           mapping: {
-            cto: 'zai-coding',
-            ceo: 'zai-general',
-            po: 'zai-general',
-            designer: 'zai-general',
-            qa: 'zai-general',
-            marketer: 'zai-general',
+            cto: 'opencode-glm51',
+            ceo: 'opencode-glm47',
+            po: 'opencode-glm47',
+            designer: 'opencode-glm46v',
+            qa: 'opencode-glm46',
+            marketer: 'opencode-glm46',
           },
+          overrides: {},
+        };
+        logger.success('OpenCode (GLM 모델 분산) 설정이 완료되었습니다!');
+      } else if (choice === 'zai-api') {
+        config.default_provider = 'zai-general';
+        config.providers = {
+          'zai-coding': {
+            type: 'http-api',
+            api: { baseUrl, apiKey: providerAnswers.apiKey, model: providerAnswers.codingModel ?? 'glm-5-turbo', headers: {} },
+            maxConcurrency: 1,
+          },
+          'zai-general': {
+            type: 'http-api',
+            api: { baseUrl, apiKey: providerAnswers.apiKey, model: providerAnswers.generalModel ?? 'glm-4.5', headers: {} },
+            maxConcurrency: 10,
+          },
+        };
+        config.agent_providers = {
+          mapping: { cto: 'zai-coding', ceo: 'zai-general', po: 'zai-general', designer: 'zai-general', qa: 'zai-general', marketer: 'zai-general' },
           overrides: {},
         };
         config.concurrency = {
@@ -87,12 +116,58 @@ export function registerSetupCommand(program: Command): void {
             { model: 'glm-4-plus', limit: 20 },
           ],
         };
-
-        await manager.saveConfig(config);
-        logger.success('ZAI 프로바이더 설정이 완료되었습니다!');
-      } else {
-        logger.info('Claude Code CLI를 사용합니다.');
+        logger.success('ZAI GLM API 설정이 완료되었습니다!');
+      } else if (choice === 'mixed-opencode-zai') {
+        config.default_provider = 'zai-general';
+        config.providers = {
+          opencode: { type: 'opencode', binary: 'opencode', maxConcurrency: 1 },
+          'zai-coding': {
+            type: 'http-api',
+            api: { baseUrl, apiKey: providerAnswers.apiKey, model: providerAnswers.codingModel ?? 'glm-5-turbo', headers: {} },
+            maxConcurrency: 1,
+          },
+          'zai-general': {
+            type: 'http-api',
+            api: { baseUrl, apiKey: providerAnswers.apiKey, model: providerAnswers.generalModel ?? 'glm-4.5', headers: {} },
+            maxConcurrency: 10,
+          },
+        };
+        config.agent_providers = {
+          mapping: { cto: 'opencode', ceo: 'zai-general', po: 'zai-general', designer: 'zai-general', qa: 'zai-general', marketer: 'zai-general' },
+          overrides: {},
+        };
+        config.concurrency = {
+          defaults: {},
+          rules: [
+            { model: 'glm-5-turbo', limit: 1 },
+            { model: 'glm-4\\.5$', limit: 10 },
+          ],
+        };
+        logger.success('OpenCode + ZAI 혼합 설정이 완료되었습니다!');
+      } else if (choice === 'mixed-claude-zai') {
+        config.default_provider = 'zai-general';
+        config.providers = {
+          claude: { type: 'claude-code', maxConcurrency: 1 },
+          'zai-general': {
+            type: 'http-api',
+            api: { baseUrl, apiKey: providerAnswers.apiKey, model: providerAnswers.generalModel ?? 'glm-4.5', headers: {} },
+            maxConcurrency: 10,
+          },
+        };
+        config.agent_providers = {
+          mapping: { cto: 'claude', ceo: 'zai-general', po: 'zai-general', designer: 'zai-general', qa: 'zai-general', marketer: 'zai-general' },
+          overrides: {},
+        };
+        config.concurrency = {
+          defaults: {},
+          rules: [
+            { model: 'glm-4\\.5$', limit: 10 },
+          ],
+        };
+        logger.success('Claude Code + ZAI 혼합 설정이 완료되었습니다!');
       }
+
+      await manager.saveConfig(config);
 
       // vision 문서 생성
       const paths = getProjectPaths(projectRoot);
