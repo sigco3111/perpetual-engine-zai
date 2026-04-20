@@ -6,22 +6,23 @@
 
 ## 상태
 
-> **v0.3.0 — 멀티 프로바이더 런타임 통합 완료**
+> **v0.4.0 — OpenCode 런타임 통합 + 모델 분산 실행**
 >
-> 프로바이더 어댑터(Claude Code / OpenCode / HTTP API)가 SessionManager, PromptBuilder, 대시보드, setup 마법사까지 완전히 연동되었습니다.
-> `config.yaml` 설정만으로 에이전트별 프로바이더·모델을 지정할 수 있으며, 환경변수 보간(`${ZAI_API_KEY}`), 동시성 리미터, provider별 스킬 렌더링이 동작합니다.
+> OpenCode 어댑터가 `opencode run` 서브커맨드로 정상 동작하며, 에이전트별로 서로 다른 GLM 모델을 할당하여 동시성 병목 없이 병렬 실행할 수 있습니다.
+> ZAI API 잔액 불필요 — opencode 코딩플랜만으로 6개 에이전트 풀가동이 가능합니다.
 
 ## 원본과의 차이점
 
 | 기능 | 원본 Perpetual Engine | Perpetual Engine ZAI |
 |------|----------------------|---------------------|
 | AI 런타임 | Claude Code CLI만 | Claude Code, OpenCode, HTTP API (ZAI, OpenAI 등) |
-| 동시성 관리 | tmux 세션 제한만 | **프로바이더별/모델별 동시성 리미터** |
+| 동시성 관리 | tmux 세션 제한만 | **프로바이더별/모델별 동시성 리미터 + 큐잉** |
 | 스킬 시스템 | Claude Code 전용 슬래시 커맨드 | **프로바이더 독립 프롬프트 기반 스킬** |
 | 에이전트 모델 | Claude 고정 | **에이전트별로 다른 모델 설정 가능** |
 | 설정 | 단일 config.yaml | **멀티 프로바이더 + 동시성 규칙** |
 | Setup 마법사 | 회사/프로덕트만 | **ZAI 프로바이더 선택 포함** |
 | 대시보드 | 에이전트 상태만 | **provider/model + 프로바이더 요약** |
+| 모델 분산 | N/A | **에이전트별 GLM 모델 분산으로 동시성 병목 회피** |
 
 ## 에이전트 자동 설치 (추천)
 
@@ -59,57 +60,56 @@ cd your-existing-project
 node /path/to/perpetual-engine-zai/dist/bin/cli.js init
 ```
 
-### 3. ZAI 설정
+### 3. 설정
 
 ```bash
 node /path/to/perpetual-engine-zai/dist/bin/cli.js setup
 ```
 
-setup 명령어에서 **ZAI GLM API**를 선택하면 API 키, 코딩용/일반용 모델을 대화형으로 설정합니다.
+setup 명령어에서 **OpenCode**를 선택하면 에이전트별 GLM 모델 분산 설정이 자동 생성됩니다.
 또는 `.perpetual-engine/config.yaml`을 직접 작성합니다:
 
 ```yaml
-# ZAI 프로바이더 설정
-default_provider: zai-general
-
 providers:
-  zai-coding:
-    type: http-api
+  opencode-glm51:
+    type: opencode
+    binary: opencode
     api:
-      baseUrl: https://open.bigmodel.cn/api/paas/v4/chat/completions
-      model: glm-5-turbo
-      apiKey: ${ZAI_API_KEY}
+      model: zai-coding-plan/glm-5.1
     maxConcurrency: 1
 
-  zai-general:
-    type: http-api
+  opencode-glm47:
+    type: opencode
+    binary: opencode
     api:
-      baseUrl: https://open.bigmodel.cn/api/paas/v4/chat/completions
-      model: glm-4.5
-      apiKey: ${ZAI_API_KEY}
-    maxConcurrency: 10
+      model: zai-coding-plan/glm-4.7
+    maxConcurrency: 2
 
-# 에이전트별 프로바이더 매핑
+  opencode-glm46v:
+    type: opencode
+    binary: opencode
+    api:
+      model: zai-coding-plan/glm-4.6v
+    maxConcurrency: 2
+
+  opencode-glm46:
+    type: opencode
+    binary: opencode
+    api:
+      model: zai-coding-plan/glm-4.6
+    maxConcurrency: 3
+
 agent_providers:
   mapping:
-    cto: zai-coding
-    ceo: zai-general
-    po: zai-general
-    designer: zai-general
-    qa: zai-general
-    marketer: zai-general
+    cto: opencode-glm51
+    ceo: opencode-glm47
+    po: opencode-glm47
+    designer: opencode-glm46v
+    qa: opencode-glm46
+    marketer: opencode-glm46
 
-# 동시성 관리
-concurrency:
-  rules:
-    - model: glm-5-turbo
-      limit: 1
-    - model: glm-4\.5$
-      limit: 10
-    - model: glm-4-plus
-      limit: 20
+default_provider: opencode-glm47
 
-# 기존 설정
 localization:
   language: ko
 company:
@@ -123,31 +123,47 @@ product:
 ### 4. 실행
 
 ```bash
-# API 키 설정
-export ZAI_API_KEY=your-api-key-here
-
 # 에이전트 팀 시작
 node /path/to/perpetual-engine-zai/dist/bin/cli.js start
 
 # 대시보드: http://localhost:3000
 ```
 
+ZAI API 키나 별도 결제 없이, opencode 코딩플랜만으로 실행됩니다.
+
+## 모델 분산 전략
+
+에이전트별로 서로 다른 GLM 모델을 할당하여 동시성 제한을 회피합니다:
+
+| 에이전트 | 모델 | 동시성 | 용도 |
+|---------|------|--------|------|
+| CTO | `glm-5.1` | 1 | 코딩 전담 |
+| CEO | `glm-4.7` | 2 | 전략 기획 |
+| PO | `glm-4.7` | 2 | 기획/분석 |
+| Designer | `glm-4.6v` | 2 | 비전 디자인 |
+| QA | `glm-4.6` | 3 | 품질 관리 |
+| Marketer | `glm-4.6` | 3 | 마케팅 |
+
+> 4개 모델에 6개 에이전트를 분산하면 동시성 병목 없이 병렬 실행할 수 있습니다.
+
 ## 지원 프로바이더
+
+### OpenCode (코딩플랜) — 기본
+```yaml
+providers:
+  opencode:
+    type: opencode
+    binary: opencode
+    api:
+      model: zai-coding-plan/glm-5.1
+    maxConcurrency: 1
+```
 
 ### Claude Code CLI (원본 호환)
 ```yaml
 providers:
   claude:
     type: claude-code
-    maxConcurrency: 1
-```
-
-### OpenCode (oh-my-openagent)
-```yaml
-providers:
-  opencode:
-    type: opencode
-    binary: opencode
     maxConcurrency: 1
 ```
 
@@ -177,22 +193,6 @@ providers:
     maxConcurrency: 5
 ```
 
-## ZAI Rate Limits 참고
-
-ZAI API의 모델별 동시성 제한 (2026년 4월 기준):
-
-| 모델 | 동시성 | 추천 용도 |
-|------|--------|----------|
-| GLM-5-Turbo | 1 | 코딩 (CTO) |
-| GLM-5V-Turbo | 1 | 비전 코딩 |
-| GLM-5.1 | 1 | 최신 코딩 |
-| GLM-5 | 2 | 코딩 보조 |
-| GLM-4.7 | 2 | 복잡한 추론 |
-| GLM-4.5 | 10 | 일반 작업 |
-| GLM-4-Plus | 20 | 가벼운 작업 |
-
-> 코딩 에이전트(CTO)는 GLM-5-Turbo(동시 1), 나머지 에이전트는 GLM-4.5(동시 10)로 설정하면 동시성 충돌 없이 최대 11개 에이전트를 병렬 실행할 수 있습니다.
-
 ## 아키텍처
 
 ```
@@ -203,10 +203,10 @@ Orchestrator (태스크 라우팅, 에이전트 조율)
                +--- ProviderFactory.create(config)
                |       |
                |       +--- ClaudeCodeAdapter  (CLI, tmux)
-               |       +--- OpenCodeAdapter     (CLI, tmux)
+               |       +--- OpenCodeAdapter     (opencode run, tmux)
                |       +--- HttpApiAdapter      (node -e, tmux)
                |
-               +--- ConcurrencyLimiter (모델별 동시성 관리)
+               +--- ConcurrencyLimiter (모델별 동시성 관리 + 큐잉)
                |
                +--- PromptBuilder (프로바이더별 스킬 렌더링)
                        |
@@ -225,8 +225,9 @@ Dashboard (Express + WebSocket)
 |------|------|
 | `src/core/session/provider-adapter.ts` | 프로바이더 추상화 인터페이스 |
 | `src/core/session/providers/` | 각 프로바이더별 어댑터 구현 |
+| `src/core/session/providers/opencode-adapter.ts` | `opencode run` 서브커맨드 래핑 |
 | `src/core/session/provider-factory.ts` | 프로바이더 생성 팩토리 + 프리셋 |
-| `src/core/session/concurrency-limiter.ts` | 모델별 동시성 리미터 |
+| `src/core/session/concurrency-limiter.ts` | 모델별 동시성 리미터 + 큐잉 |
 | `src/core/session/session-manager.ts` | 프로바이더 라우팅 + 동시성 통합 |
 | `src/core/project/config.ts` | 확장된 설정 스키마 + env var 보간 + validation |
 | `src/core/agent/agent-skills.ts` | 프로바이더 독립 스킬 시스템 |
@@ -239,11 +240,11 @@ Dashboard (Express + WebSocket)
 
 | 변수 | 설명 | 필수 |
 |------|------|------|
-| `ZAI_API_KEY` | ZAI API 키 | ZAI 사용 시 |
+| `ZAI_API_KEY` | ZAI API 키 | ZAI HTTP API 사용 시 |
 | `OPENAI_API_KEY` | OpenAI API 키 | OpenAI 사용 시 |
 | `ANTHROPIC_API_KEY` | Anthropic API 키 | Claude 사용 시 |
 
-> `config.yaml`에서 `${ZAI_API_KEY}` 형태로 환경변수를 참조할 수 있습니다. 설정되지 않은 변수는 원문 그대로 유지됩니다.
+> OpenCode 코딩플랜 사용 시에는 별도 환경변수가 필요하지 않습니다.
 
 ## CLI 명령어
 
@@ -268,8 +269,8 @@ perpetual-engine task run <id>   # 태스크 실행
 ## 테스트
 
 ```bash
-npm run test:unit   # 단위 테스트 (104 tests)
-npm run test:e2e    # E2E 테스트 (41 tests)
+npm run test:unit   # 단위 테스트
+npm run test:e2e    # E2E 테스트
 npm test            # 전체 (145 tests)
 ```
 
@@ -290,3 +291,4 @@ MIT License — 원본 [Perpetual Engine](https://github.com/greatsk55/perpetual
 
 - [Perpetual Engine](https://github.com/greatsk55/perpetual-engine) — 원본 프레임워크
 - [Z.ai](https://z.ai) — GLM API 제공
+- [OpenCode](https://github.com/code-yeongyu/oh-my-openagent) — 멀티 프로바이더 CLI
