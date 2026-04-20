@@ -6,10 +6,11 @@
 
 ## 상태
 
-> **v0.4.0 — OpenCode 런타임 통합 + 모델 분산 실행**
+> **v0.5.0 — 대시보드 풀기능 개선 + 태스크 제어**
 >
 > OpenCode 어댑터가 `opencode run` 서브커맨드로 정상 동작하며, 에이전트별로 서로 다른 GLM 모델을 할당하여 동시성 병목 없이 병렬 실행할 수 있습니다.
 > ZAI API 잔액 불필요 — opencode 코딩플랜만으로 6개 에이전트 풀가동이 가능합니다.
+> 대시보드에서 칸반 관리, 메시지 송수신, 설정 편집, 에이전트 제어까지 모든 기능을 GUI로 조작할 수 있습니다.
 
 ## 원본과의 차이점
 
@@ -22,6 +23,10 @@
 | 설정 | 단일 config.yaml | **멀티 프로바이더 + 동시성 규칙** |
 | Setup 마법사 | 회사/프로덕트만 | **ZAI 프로바이더 선택 포함** |
 | 대시보드 | 에이전트 상태만 | **provider/model + 프로바이더 요약** |
+| 대시보드 칸반 | 읽기 전용 | **태스크 CRUD + Force Run / Suspend / Resume** |
+| 대시보드 메시지 | 기본 송수신 | **에이전트 응답 대기 + JSON 포맷팅 + 회의 초대 렌더링** |
+| 대시보드 설정 | 없음 | **Configuration 편집 + Agent Control (Stop / Restart)** |
+| 태스크 재개 | 수동 CLI만 | **Resume 즉시 워크플로우 디스패치 + 다중 refresh** |
 | 모델 분산 | N/A | **에이전트별 GLM 모델 분산으로 동시성 병목 회피** |
 
 ## 에이전트 자동 설치 (추천)
@@ -213,10 +218,17 @@ Orchestrator (태스크 라우팅, 에이전트 조율)
                        +--- CLI: /slash-command
                        +--- HTTP: instruction text
 
-Dashboard (Express + WebSocket)
-    /api/status   → provider summary 포함
+Dashboard (Express + WebSocket + 인라인 React)
+    /api/status   → provider summary + 에이전트 실행 상태
     /api/agents   → agent.provider / agent.model 필드
-    /api/kanban   → 태스크 상태
+    /api/kanban   → 태스크 상태별 그룹핑 (backlog ~ done + suspended)
+    /api/tasks/:id/force-run   → 태스크 강제 실행
+    /api/tasks/:id/suspend     → 태스크 일시 중단
+    /api/tasks/:id/resume      → 태스크 재개 (워크플로우 즉시 디스패치)
+    /api/agents/stop-all       → 전체 에이전트 종료
+    /api/agents/restart        → 에이전트 재시작 (고아 태스크 재개)
+    /api/config                → 설정 조회/수정
+    /api/messages              → 메시지 송수신 + 에이전트 응답 대기
 ```
 
 ### 핵심 파일
@@ -263,7 +275,10 @@ perpetual-engine logs <agent>    # 에이전트 로그
 
 # 상호작용
 perpetual-engine message "msg"   # 팀에게 메시지
-perpetual-engine task run <id>   # 태스크 실행
+perpetual-engine task run <id>   # 태스크 강제 실행
+perpetual-engine task suspend <id>  # 태스크 일시 중단
+perpetual-engine task resume <id>   # 중단된 태스크 재개
+perpetual-engine task list [-s status]  # 태스크 목록 (상태 필터)
 ```
 
 ## 테스트
