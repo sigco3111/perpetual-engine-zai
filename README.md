@@ -14,7 +14,20 @@
 | 에이전트 모델 | Claude 고정 | **에이전트별로 다른 모델 설정 가능** |
 | 설정 | 단일 config.yaml | **멀티 프로바이더 + 동시성 규칙** |
 
-## 🚀 Quick Start
+## 🤖 에이전트 자동 설치 (추천)
+
+LLM 에이전트(Claude Code, Cursor, Amp, OpenCode 등)에게 아래 프롬프트를 복사해서 붙여넣으세요:
+
+```
+Perpetual Engine ZAI를 설치하고 설정해 줘.
+설치 가이드는 여기: https://raw.githubusercontent.com/sigco3111/perpetual-engine-zai/main/docs/installation-guide.md
+```
+
+에이전트가 자동으로 환경 확인 → 클론 → 빌드 → 설정까지 진행합니다.
+
+---
+
+## 🚀 Quick Start (직접 설치)
 
 ### 1. 설치
 
