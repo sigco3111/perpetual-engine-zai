@@ -9,7 +9,7 @@
  * 시스템 프롬프트에 작업 지시를 담아 결과를 텍스트로 반환받는 방식입니다.
  */
 
-import type { ProviderAdapter, ProviderConfig, BuildCommandResult, McpServerConfig } from './provider-adapter.js';
+import type { ProviderAdapter, ProviderConfig, BuildCommandResult, McpServerConfig } from '../provider-adapter.js';
 
 export class HttpApiAdapter implements ProviderAdapter {
   readonly type = 'http-api' as const;

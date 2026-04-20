@@ -91,9 +91,77 @@ export type ProviderConfigType = z.infer<typeof providerConfigSchema>;
 export type ConcurrencyConfigType = z.infer<typeof concurrencyConfigSchema>;
 export type AgentProviderMappingType = z.infer<typeof agentProviderMappingSchema>;
 
+/**
+ * 문자열 내의 ${VAR_NAME} 패턴을 환경변수로 치환합니다.
+ * 치환되지 않은 ${...} 패턴이 남아있으면 원문 유지.
+ */
+export function resolveEnvVars(value: string): string {
+  return value.replace(/\$\{([^}]+)\}/g, (match, varName) => {
+    const envValue = process.env[varName];
+    return envValue !== undefined ? envValue : match;
+  });
+}
+
+/**
+ * 에이전트 프로바이더 매핑이 유효한지 검증합니다.
+ * agent_providers.mapping의 모든 키가 providers에 정의되어 있어야 합니다.
+ */
+export function validateProviderConfig(config: ProjectConfig): string[] {
+  const errors: string[] = [];
+  const providerNames = Object.keys(config.providers);
+  const mappingEntries = Object.entries(config.agent_providers?.mapping ?? {});
+
+  for (const [role, providerName] of mappingEntries) {
+    if (!providerNames.includes(providerName)) {
+      errors.push(`Provider '${providerName}' referenced in agent_providers.mapping for role '${role}' but not defined in providers`);
+    }
+  }
+
+  return errors;
+}
+
+/**
+ * 특정 에이전트 역할에 매핑된 프로바이더 설정을 반환합니다.
+ * 매핑이 없으면 default_provider를 확인하고, 그것도 없으면 null을 반환합니다.
+ */
+export function getProviderForAgent(config: ProjectConfig, role: string): ProviderConfigType | null {
+  const mapping = config.agent_providers?.mapping ?? {};
+  const providerName = mapping[role] ?? config.default_provider;
+
+  if (!providerName || providerName === 'claude-code') return null;
+
+  const overrides = config.agent_providers?.overrides ?? {};
+  if (overrides[role]) return overrides[role];
+
+  return config.providers[providerName] ?? null;
+}
+
+/**
+ * 기본 프로바이더 설정을 반환합니다.
+ */
+export function getDefaultProvider(config: ProjectConfig): ProviderConfigType | null {
+  const providerName = config.default_provider;
+  if (!providerName || providerName === 'claude-code') return null;
+  return config.providers[providerName] ?? null;
+}
+
 export async function loadConfig(configPath: string): Promise<ProjectConfig> {
   const raw = await readYaml<unknown>(configPath);
-  return projectConfigSchema.parse(raw);
+  const config = projectConfigSchema.parse(raw);
+
+  for (const [_name, provider] of Object.entries(config.providers)) {
+    if (provider.api?.apiKey) {
+      provider.api.apiKey = resolveEnvVars(provider.api.apiKey);
+    }
+  }
+
+  for (const [_role, override] of Object.entries(config.agent_providers?.overrides ?? {})) {
+    if (override.api?.apiKey) {
+      override.api.apiKey = resolveEnvVars(override.api.apiKey);
+    }
+  }
+
+  return config;
 }
 
 export async function saveConfig(configPath: string, config: ProjectConfig): Promise<void> {

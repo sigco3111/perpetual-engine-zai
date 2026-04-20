@@ -110,3 +110,52 @@ export async function runSetupPrompts(): Promise<SetupAnswers> {
     deployTarget,
   };
 }
+
+export interface ProviderSetupAnswers {
+  useZaiProvider: boolean;
+  apiKey?: string;
+  codingModel?: string;
+  generalModel?: string;
+}
+
+export async function runProviderSetupPrompts(): Promise<ProviderSetupAnswers> {
+  const useZaiProvider = await select({
+    message: 'AI 프로바이더를 선택하세요:',
+    choices: [
+      { name: 'Claude Code CLI (원본)', value: false },
+      { name: 'ZAI GLM API (멀티 프로바이더)', value: true },
+    ],
+    default: false,
+  });
+
+  if (!useZaiProvider) {
+    return { useZaiProvider: false };
+  }
+
+  const apiKey = await input({
+    message: 'ZAI API 키를 입력하세요 (또는 환경변수 ZAI_API_KEY 사용):',
+    default: '${ZAI_API_KEY}',
+  });
+
+  const codingModel = await select({
+    message: '코딩 에이전트(CTO)용 모델:',
+    choices: [
+      { name: 'GLM-5-Turbo (동시 1, 최고 성능)', value: 'glm-5-turbo' },
+      { name: 'GLM-5 (동시 2)', value: 'glm-5' },
+      { name: 'GLM-5.1 (동시 1, 최신)', value: 'glm-5.1' },
+    ],
+    default: 'glm-5-turbo',
+  });
+
+  const generalModel = await select({
+    message: '일반 에이전트용 모델:',
+    choices: [
+      { name: 'GLM-4.5 (동시 10, 추천)', value: 'glm-4.5' },
+      { name: 'GLM-4-Plus (동시 20, 가벼운 작업)', value: 'glm-4-plus' },
+      { name: 'GLM-4.5V (비전, 동시 10)', value: 'glm-4.5v' },
+    ],
+    default: 'glm-4.5',
+  });
+
+  return { useZaiProvider: true, apiKey, codingModel, generalModel };
+}

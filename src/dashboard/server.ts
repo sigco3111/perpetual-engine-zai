@@ -85,6 +85,13 @@ export class DashboardServer {
           byStatus[t.status] = (byStatus[t.status] || 0) + 1;
         }
 
+        // Provider summary
+        const providerSummary: Record<string, number> = {};
+        for (const agent of running) {
+          const provider = agent.provider ?? 'claude-code';
+          providerSummary[provider] = (providerSummary[provider] || 0) + 1;
+        }
+
         res.json({
           company: config.company,
           product: config.product,
@@ -92,6 +99,7 @@ export class DashboardServer {
           tasks: { total: tasks.length, by_status: byStatus },
           active_agents: running.length,
           agents_running: running,
+          providers: providerSummary,
         });
       } catch (err) {
         res.status(500).json({ error: (err as Error).message });

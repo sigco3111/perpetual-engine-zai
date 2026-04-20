@@ -4,11 +4,17 @@ import path from 'node:path';
 import { TmuxAdapter } from './tmux-adapter.js';
 import { tryAutoInstallTmux } from './tmux-installer.js';
 import { PromptBuilder } from '../agent/prompt-builder.js';
+import { ConcurrencyLimiter } from './concurrency-limiter.js';
+import type { ConcurrencyRule } from './concurrency-limiter.js';
 import type { AgentConfig, AgentSession, AgentStatus } from '../agent/agent-types.js';
 import type { Task, WorkflowPhase } from '../state/types.js';
 import type { ProjectConfig } from '../project/config.js';
 import type { ComponentSpec } from '../workflow/components.js';
 import { logger } from '../../utils/logger.js';
+import { createProviderAdapter } from './provider-factory.js';
+import { getProviderForAgent } from '../project/config.js';
+import type { ProviderConfigType } from '../project/config.js';
+import type { ProviderConfig, McpServerConfig } from './provider-adapter.js';
 
 /**
  * tmux `new-session` 은 명령어 인자 길이가 약 16KB 를 넘으면 "command too long" 으로 거절한다.
@@ -19,12 +25,29 @@ const TMUX_CMD_THRESHOLD = 8 * 1024;
 export class SessionManager {
   private tmux: TmuxAdapter;
   private promptBuilder: PromptBuilder;
+  private concurrencyLimiter: ConcurrencyLimiter;
   private activeSessions: Map<string, AgentSession> = new Map();
   private projectRoot = '';
+  /** role → resolver 함수 (used to release a concurrency slot when session stops) */
+  private slotResolvers: Map<string, () => void> = new Map();
+  /** role → resolver that signals session create completion (used so startAgent can wait until tmux created) */
+  private createCompleteResolvers: Map<string, () => void> = new Map();
 
   constructor(tmux?: TmuxAdapter) {
     this.tmux = tmux ?? new TmuxAdapter();
     this.promptBuilder = new PromptBuilder();
+    this.concurrencyLimiter = new ConcurrencyLimiter();
+  }
+
+  configureConcurrency(config: { concurrency?: { rules?: Array<{ model: string; limit: number }> } }): void {
+    if (!config.concurrency?.rules) return;
+    for (const rule of config.concurrency.rules) {
+      this.concurrencyLimiter.addRule({
+        provider: 'http-api',
+        modelPattern: rule.model,
+        maxConcurrency: rule.limit,
+      } as ConcurrencyRule);
+    }
   }
 
   setProjectRoot(root: string): void {
@@ -123,7 +146,7 @@ export class SessionManager {
       componentSpec,
     });
 
-    // Claude Code CLI 명령어 구성
+    // 세션 ID 및 태스크 지시 구성
     const sessionId = randomUUID();
     const escapedPrompt = systemPrompt.replace(/'/g, "'\\''");
 
@@ -147,30 +170,115 @@ export class SessionManager {
       taskInstruction += `\n\n## 완료 조건\n${completionCriteria}`;
     }
 
-    const claudeCmdParts = [
-      'claude',
-      `--append-system-prompt '${escapedPrompt}'`,
-      `--session-id ${sessionId}`,
-      `--dangerously-skip-permissions`,
-      `--add-dir '${projectRoot}'`,
-    ];
-
-    // 에이전트가 필요로 하는 MCP 서버 연결
-    const mcpConfigArg = this.buildMcpConfigArg(agent, config);
-    if (mcpConfigArg) {
-      claudeCmdParts.push(mcpConfigArg);
+    // ensure concurrency rules are loaded from project config
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      this.configureConcurrency((config as any));
+    } catch {
+      // ignore if config shape differs
     }
 
-    claudeCmdParts.push(`-p '${taskInstruction.replace(/'/g, "'\\''")}'`);
-    const claudeCmd = claudeCmdParts.join(' ');
+    const configProvider = getProviderForAgent(config, agent.role);
+    let agentProvider: string | undefined;
+    let agentModel: string | undefined;
+    let commandToUse = '';
+    let createdInExecute = false;
+
+    if (configProvider) {
+      const adapterConfig = this.toAdapterConfig(configProvider);
+
+      if (adapterConfig.api?.apiKey && adapterConfig.api.apiKey.includes('${')) {
+        throw new Error(`Provider for role '${agent.role}' has unresolved environment variable in API key: ${adapterConfig.api.apiKey}`);
+      }
+
+      const adapter = createProviderAdapter(adapterConfig);
+      const mcpConfig = this.buildMcpConfigObject(agent, config);
+
+      // Concurrency handling for HTTP/API providers: enforce model-level limit
+      const providerKey = adapter.type;
+      const modelKey = adapterConfig.api?.model ?? 'default';
+      const available = this.concurrencyLimiter.getAvailableSlots(providerKey, modelKey);
+      if (available <= 0) {
+        throw new Error(`Concurrency limit reached for ${providerKey}:${modelKey} (0 available). Role: ${agent.role}`);
+      }
+
+      // We'll use the limiter.acquire to reserve a slot for the lifetime of the session.
+      // The execute callback will create the tmux session and then await a resolver that is
+      // fulfilled when the session stops — keeping the slot occupied until release.
+      const createComplete = new Promise<void>((resolve) => this.createCompleteResolvers.set(agent.role, resolve));
+
+      const execute = async (): Promise<void> => {
+        try {
+          const buildResult = adapter.buildCommand({
+            systemPrompt,
+            sessionId,
+            taskInstruction,
+            projectRoot,
+            mcpConfig,
+            agentName: agent.role,
+          });
+
+          commandToUse = buildResult.command;
+          agentProvider = adapter.type;
+          agentModel = adapterConfig.api?.model;
+
+          // create tmux session (this may throw)
+          const logFile = path.join(this.getLogDir(), `${sessionName}.log`);
+          const fullCmd = `cd '${projectRoot}' && ${commandToUse} 2>&1 | tee '${logFile}'`;
+          await this.createTmuxSession(sessionName, fullCmd);
+
+          // notify startAgent that creation is complete
+          const resolver = this.createCompleteResolvers.get(agent.role);
+          if (resolver) {
+            resolver();
+            this.createCompleteResolvers.delete(agent.role);
+          }
+
+          // keep the execute promise pending until the session is stopped
+          await new Promise<void>((resolve) => this.slotResolvers.set(agent.role, resolve));
+        } finally {
+          // noop — ConcurrencyLimiter will call release in its finally after execute resolves
+        }
+      };
+
+      // enqueue/acquire slot — don't await full acquire (which resolves when session ends)
+      // but wait until the tmux session creation step finishes so callers observe created session.
+      const acquirePromise = this.concurrencyLimiter.acquire(providerKey, modelKey, agent.role, execute);
+      // wait until tmux session is created inside execute
+      await createComplete;
+      createdInExecute = true;
+
+      // ensure commandToUse/agentProvider/agentModel were set by execute buildResult
+      // if adapter.buildCommand threw earlier, exception will bubble from createTmuxSession above
+    } else {
+      const claudeCmdParts = [
+        'claude',
+        `--append-system-prompt '${escapedPrompt}'`,
+        `--session-id ${sessionId}`,
+        `--dangerously-skip-permissions`,
+        `--add-dir '${projectRoot}'`,
+      ];
+
+      const mcpConfigArg = this.buildMcpConfigArg(agent, config);
+      if (mcpConfigArg) {
+        claudeCmdParts.push(mcpConfigArg);
+      }
+
+      claudeCmdParts.push(`-p '${taskInstruction.replace(/'/g, "'\\''")}'`);
+      commandToUse = claudeCmdParts.join(' ');
+    }
 
     // 로그 파일 경로
     this.projectRoot = projectRoot;
-    const logFile = path.join(this.getLogDir(), `${sessionName}.log`);
 
-    // tmux 세션에서 Claude Code 실행 (stdout을 로그 파일로 저장)
-    const fullCmd = `cd '${projectRoot}' && ${claudeCmd} 2>&1 | tee '${logFile}'`;
-    await this.createTmuxSession(sessionName, fullCmd);
+    // If the tmux session was already created inside the execute() passed to acquire(),
+    // we should not create it again here. Otherwise create it now for non-provider path.
+    if (!createdInExecute) {
+      const logFile = path.join(this.getLogDir(), `${sessionName}.log`);
+      // tmux 세션에서 실행 (stdout을 로그 파일로 저장)
+      const fullCmd = `cd '${projectRoot}' && ${commandToUse} 2>&1 | tee '${logFile}'`;
+      await this.createTmuxSession(sessionName, fullCmd);
+    }
 
     const session: AgentSession = {
       role: agent.role,
@@ -178,6 +286,8 @@ export class SessionManager {
       status: 'working',
       currentTask: task?.id,
       startedAt: new Date().toISOString(),
+      provider: agentProvider,
+      model: agentModel,
     };
 
     this.activeSessions.set(agent.role, session);
@@ -185,7 +295,33 @@ export class SessionManager {
   }
 
   async stopAgent(role: string): Promise<void> {
+    const session = this.activeSessions.get(role);
+    // resolve slot resolver if present (this will allow the execute() in acquire to finish)
+    const slotResolver = this.slotResolvers.get(role);
+    if (slotResolver) {
+      slotResolver();
+      this.slotResolvers.delete(role);
+    }
+
     await this.tmux.killSession(role);
+
+    // Wait until ConcurrencyLimiter has observed the execute() resolution and released its running count.
+    // This avoids races where a new startAgent() call immediately afterwards sees no available slot yet.
+    if (session?.provider && session?.model) {
+      const providerKey = session.provider;
+      const modelKey = session.model;
+      // poll until available slots > 0 (bounded wait)
+      const maxTries = 50;
+      let tries = 0;
+      while (this.concurrencyLimiter.getAvailableSlots(providerKey, modelKey) <= 0 && tries < maxTries) {
+        // small delay
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise(r => setTimeout(r, 20));
+        tries += 1;
+      }
+    }
+
+    // release is handled by ConcurrencyLimiter when the execute() promise resolves.
     this.activeSessions.delete(role);
   }
 
@@ -205,6 +341,13 @@ export class SessionManager {
       } else {
         // 세션이 종료됨
         session.status = 'idle';
+        // if there was a pending slot resolver, resolve it so limiter releases
+        const slotResolver = this.slotResolvers.get(role);
+        if (slotResolver) {
+          slotResolver();
+          this.slotResolvers.delete(role);
+        }
+
         this.activeSessions.delete(role);
       }
     }
@@ -229,6 +372,45 @@ export class SessionManager {
       // 로그 파일이 없으면 tmux pane 시도
       return this.tmux.capturePane(role, lines);
     }
+  }
+
+  /**
+   * config.ts의 ProviderConfigType을 provider-adapter.ts의 ProviderConfig으로 변환합니다.
+   */
+  private toAdapterConfig(configProvider: ProviderConfigType): ProviderConfig {
+    return {
+      type: configProvider.type,
+      binary: configProvider.binary,
+      api: configProvider.api ? {
+        baseUrl: configProvider.api.baseUrl,
+        apiKey: configProvider.api.apiKey,
+        model: configProvider.api.model,
+        headers: configProvider.api.headers,
+      } : undefined,
+      maxConcurrency: configProvider.maxConcurrency,
+    };
+  }
+
+  /**
+   * 에이전트의 required_mcp_tools와 프로젝트의 mcp_servers 설정을 매칭하여
+   * ProviderAdapter.buildCommand에 전달할 mcpConfig 객체를 생성합니다.
+   */
+  private buildMcpConfigObject(agent: AgentConfig, config: ProjectConfig): Record<string, McpServerConfig> | undefined {
+    const requiredTools = agent.required_mcp_tools;
+    if (!requiredTools?.length) return undefined;
+
+    const mcpServers = config.mcp_servers;
+    if (!mcpServers || Object.keys(mcpServers).length === 0) return undefined;
+
+    const matched: Record<string, McpServerConfig> = {};
+    for (const tool of requiredTools) {
+      const server = mcpServers[tool];
+      if (server) {
+        matched[tool] = { command: server.command, args: server.args, env: server.env };
+      }
+    }
+
+    return Object.keys(matched).length > 0 ? matched : undefined;
   }
 
   /**
@@ -299,19 +481,68 @@ export class SessionManager {
     const escapedPrompt = systemPrompt.replace(/'/g, "'\\''");
     const taskInstruction = `[자문 요청] ${message}\n\n위 질문에 대해 전문가로서 답변하세요. 답변은 docs/decisions/ 에 문서화하세요.`;
 
-    const claudeCmd = [
-      'claude',
-      `--append-system-prompt '${escapedPrompt}'`,
-      `--session-id ${sessionId}`,
-      `--dangerously-skip-permissions`,
-      `--add-dir '${projectRoot}'`,
-      `-p '${taskInstruction.replace(/'/g, "'\\''")}'`,
-    ].join(' ');
+    // Provider-aware command selection
+    const configProvider = getProviderForAgent(config, agent.role);
+    let commandToUse: string;
+    let sessionProvider: string | undefined;
+    let sessionModel: string | undefined;
+
+    if (configProvider) {
+      const adapterConfig = this.toAdapterConfig(configProvider);
+      if (adapterConfig.api?.apiKey && adapterConfig.api.apiKey.includes('${')) {
+        throw new Error(`Provider for role '${agent.role}' has unresolved environment variable in API key: ${adapterConfig.api.apiKey}`);
+      }
+
+      const adapter = createProviderAdapter(adapterConfig);
+      // If adapter is CLI-based, use its ephemeral command builder. HTTP API adapters cannot access filesystem — fall back to Claude CLI
+      if (adapter.isCLIBased) {
+        const mcpConfig = this.buildMcpConfigObject(agent, config);
+        const buildResult = adapter.buildEphemeralCommand({
+          systemPrompt,
+          sessionId,
+          projectRoot,
+          message,
+          mcpConfig,
+        });
+        commandToUse = buildResult.command;
+        sessionProvider = adapter.type;
+        sessionModel = adapterConfig.api?.model;
+      } else {
+        // HTTP API provider — fallback to Claude CLI because ephemeral agents need filesystem access
+        const claudeCmdParts = [
+          'claude',
+          `--append-system-prompt '${escapedPrompt}'`,
+          `--session-id ${sessionId}`,
+          `--dangerously-skip-permissions`,
+          `--add-dir '${projectRoot}'`,
+        ];
+
+        const mcpConfigArg = this.buildMcpConfigArg(agent, config);
+        if (mcpConfigArg) claudeCmdParts.push(mcpConfigArg);
+
+        claudeCmdParts.push(`-p '${taskInstruction.replace(/'/g, "'\\''")}'`);
+        commandToUse = claudeCmdParts.join(' ');
+      }
+    } else {
+      // No provider configured — default to Claude CLI
+      const claudeCmdParts = [
+        'claude',
+        `--append-system-prompt '${escapedPrompt}'`,
+        `--session-id ${sessionId}`,
+        `--dangerously-skip-permissions`,
+        `--add-dir '${projectRoot}'`,
+      ];
+
+      const mcpConfigArg = this.buildMcpConfigArg(agent, config);
+      if (mcpConfigArg) claudeCmdParts.push(mcpConfigArg);
+
+      claudeCmdParts.push(`-p '${taskInstruction.replace(/'/g, "'\\''")}'`);
+      commandToUse = claudeCmdParts.join(' ');
+    }
 
     this.projectRoot = projectRoot;
     const logFile = path.join(this.getLogDir(), `${sessionName}.log`);
-
-    const fullCmd = `cd '${projectRoot}' && ${claudeCmd} 2>&1 | tee '${logFile}'`;
+    const fullCmd = `cd '${projectRoot}' && ${commandToUse} 2>&1 | tee '${logFile}'`;
     await this.createTmuxSession(sessionName, fullCmd);
 
     const session: AgentSession = {
@@ -319,6 +550,8 @@ export class SessionManager {
       sessionName,
       status: 'working',
       startedAt: new Date().toISOString(),
+      provider: sessionProvider,
+      model: sessionModel,
     };
 
     this.activeSessions.set(sessionName, session);
@@ -385,19 +618,64 @@ ${consultants?.length ? '6' : '5'}. 액션 아이템을 kanban.json에 태스크
 
     const taskInstruction = `회의를 진행하세요.\n\n안건:\n${agenda}\n\n참여자: ${participantNames}${consultantNames ? `, ${consultantNames}` : ''}\n\n각 참여자의 관점을 반영하여 논의하고, 결정사항과 액션 아이템을 도출하세요.`;
 
-    const claudeCmd = [
-      'claude',
-      `--append-system-prompt '${escapedPrompt}'`,
-      `--session-id ${sessionId}`,
-      `--dangerously-skip-permissions`,
-      `--add-dir '${projectRoot}'`,
-      `-p '${taskInstruction.replace(/'/g, "'\\''")}'`,
-    ].join(' ');
+    // Provider-aware command selection for meetings
+    const configProvider = getProviderForAgent(config, initiator.role);
+    let commandToUse: string;
+    let sessionProvider: string | undefined;
+
+    if (configProvider) {
+      const adapterConfig = this.toAdapterConfig(configProvider);
+      if (adapterConfig.api?.apiKey && adapterConfig.api.apiKey.includes('${')) {
+        throw new Error(`Provider for role '${initiator.role}' has unresolved environment variable in API key: ${adapterConfig.api.apiKey}`);
+      }
+
+      const adapter = createProviderAdapter(adapterConfig);
+      // Meetings require filesystem access; if adapter is CLI-based use it, otherwise fall back to Claude CLI
+      if (adapter.isCLIBased) {
+        const mcpConfig = this.buildMcpConfigObject(initiator, config);
+        const buildResult = adapter.buildMeetingCommand({
+          systemPrompt,
+          sessionId,
+          projectRoot,
+          meetingAgenda: taskInstruction,
+          mcpConfig,
+        });
+        commandToUse = buildResult.command;
+        sessionProvider = adapter.type;
+      } else {
+        const claudeCmdParts = [
+          'claude',
+          `--append-system-prompt '${escapedPrompt}'`,
+          `--session-id ${sessionId}`,
+          `--dangerously-skip-permissions`,
+          `--add-dir '${projectRoot}'`,
+        ];
+
+        const mcpConfigArg = this.buildMcpConfigArg(initiator, config);
+        if (mcpConfigArg) claudeCmdParts.push(mcpConfigArg);
+
+        claudeCmdParts.push(`-p '${taskInstruction.replace(/'/g, "'\\''")}'`);
+        commandToUse = claudeCmdParts.join(' ');
+      }
+    } else {
+      const claudeCmdParts = [
+        'claude',
+        `--append-system-prompt '${escapedPrompt}'`,
+        `--session-id ${sessionId}`,
+        `--dangerously-skip-permissions`,
+        `--add-dir '${projectRoot}'`,
+      ];
+
+      const mcpConfigArg = this.buildMcpConfigArg(initiator, config);
+      if (mcpConfigArg) claudeCmdParts.push(mcpConfigArg);
+
+      claudeCmdParts.push(`-p '${taskInstruction.replace(/'/g, "'\\''")}'`);
+      commandToUse = claudeCmdParts.join(' ');
+    }
 
     this.projectRoot = projectRoot;
     const logFile = path.join(this.getLogDir(), `${sessionName}.log`);
-
-    const fullCmd = `cd '${projectRoot}' && ${claudeCmd} 2>&1 | tee '${logFile}'`;
+    const fullCmd = `cd '${projectRoot}' && ${commandToUse} 2>&1 | tee '${logFile}'`;
     await this.createTmuxSession(sessionName, fullCmd);
 
     const session: AgentSession = {
@@ -405,6 +683,7 @@ ${consultants?.length ? '6' : '5'}. 액션 아이템을 kanban.json에 태스크
       sessionName,
       status: 'working',
       startedAt: new Date().toISOString(),
+      provider: sessionProvider,
     };
 
     this.activeSessions.set(sessionName, session);
