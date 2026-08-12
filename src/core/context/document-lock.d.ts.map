@@ -1,0 +1,1 @@
+{"version":3,"file":"document-lock.d.ts","sourceRoot":"","sources":["../../../../src/core/context/document-lock.ts"],"names":[],"mappings":"AAGA,qBAAa,YAAY;IACvB,OAAO,CAAC,QAAQ,CAAS;gBAEb,YAAY,EAAE,MAAM;IAI1B,OAAO,CAAC,KAAK,EAAE,MAAM,EAAE,OAAO,SAAK,EAAE,KAAK,SAAM,GAAG,OAAO,CAAC,OAAO,CAAC;IA2BnE,OAAO,IAAI,OAAO,CAAC,IAAI,CAAC;IAQ9B,QAAQ,IAAI,OAAO;CAGpB"}

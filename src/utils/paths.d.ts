@@ -1,0 +1,32 @@
+export declare const INFINITE_POWER_DIR = ".perpetual-engine";
+export declare const CONFIG_FILE = "config.yaml";
+export declare const KANBAN_FILE = "kanban.json";
+export declare const SPRINTS_FILE = "sprints.json";
+export declare const METRICS_FILE = "metrics.json";
+export declare function getProjectPaths(projectRoot: string): {
+    root: string;
+    infinitePower: string;
+    config: string;
+    agents: string;
+    sessions: string;
+    state: string;
+    messages: string;
+    kanban: string;
+    sprints: string;
+    metrics: string;
+    metricsReports: string;
+    docs: string;
+    vision: string;
+    meetings: string;
+    decisions: string;
+    planning: string;
+    design: string;
+    designMockups: string;
+    development: string;
+    marketing: string;
+    marketingMockups: string;
+    changelog: string;
+    workspace: string;
+};
+export declare function isPerpetualEngineProject(dir: string): boolean;
+//# sourceMappingURL=paths.d.ts.map
